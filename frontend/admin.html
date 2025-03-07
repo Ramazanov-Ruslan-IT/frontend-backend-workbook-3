@@ -51,47 +51,88 @@
     </table>
 </div>
 
-<script defer>
-    document.addEventListener("DOMContentLoaded", function () {
+<script>
+    // Чтобы inline onclick="deleteProduct(id)" работал, нужно объявить функцию в глобальной области
+    async function deleteProduct(id) {
+        if (!confirm(`Вы уверены, что хотите удалить товар с ID ${id}?`)) return;
+
+        try {
+            const response = await fetch(`http://localhost:8080/products/${id}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" }
+            });
+
+            if (!response.ok) {
+                const errorMessage = await response.json();
+                throw new Error(errorMessage.error || "Ошибка удаления товара");
+            }
+
+            console.log(`✅ Товар с ID ${id} удалён`);
+            await loadProducts();
+        } catch (error) {
+            console.error("Ошибка удаления товара:", error);
+            alert("Ошибка удаления товара: " + error.message);
+        }
+    }
+
+    // Редактирование можно сделать по аналогии с удалением, пока заглушка
+    function editProduct(id, name, price, description, categories) {
+        document.getElementById("productId").value = id;
+        document.getElementById("name").value = name;
+        document.getElementById("price").value = price;
+        document.getElementById("description").value = description;
+        document.getElementById("categories").value = categories;
+    }
+
+    async function loadProducts() {
         const API_URL = "http://localhost:8080/products";
+        try {
+            const response = await fetch(API_URL);
+            if (!response.ok) throw new Error("Ошибка загрузки данных");
 
-        async function loadProducts() {
-            try {
-                const response = await fetch(API_URL);
-                if (!response.ok) throw new Error("Ошибка загрузки данных");
+            const products = await response.json();
+            const productList = document.getElementById("productList");
+            if (!productList) throw new Error("Элемент productList не найден");
 
-                const products = await response.json();
-                const productList = document.getElementById("productList");
-                if (!productList) throw new Error("Элемент productList не найден");
-
-                productList.innerHTML = "";
-                products.forEach(product => {
-                    const row = document.createElement("tr");
-                    row.innerHTML = `
+            productList.innerHTML = "";
+            products.forEach(product => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
                     <td>${product.id}</td>
                     <td>${product.name}</td>
                     <td>${product.price} ₽</td>
                     <td>${product.description}</td>
                     <td>${product.categories.join(', ')}</td>
                     <td class="actions">
-                        <button class="btn-primary" onclick="editProduct(${product.id}, '${product.name}', ${product.price}, '${product.description}', '${product.categories.join(', ')}')">Редактировать</button>
+                        <button class="btn-primary" onclick="editProduct(${product.id}, '${product.name}', ${product.price}, '${product.description}', '${product.categories.join(', ')}')">
+                            Редактировать
+                        </button>
                         <button class="btn-danger" onclick="deleteProduct(${product.id})">Удалить</button>
                     </td>
                 `;
-                    productList.appendChild(row);
-                });
-            } catch (error) {
-                console.error("Ошибка загрузки товаров:", error);
-            }
+                productList.appendChild(row);
+            });
+        } catch (error) {
+            console.error("Ошибка загрузки товаров:", error);
         }
+    }
 
-        async function addProduct(event) {
-            event.preventDefault();
-            const name = document.getElementById("name").value;
-            const price = document.getElementById("price").value;
-            const description = document.getElementById("description").value;
-            const categories = document.getElementById("categories").value.split(",").map(cat => cat.trim());
+    async function addProduct(event) {
+        event.preventDefault();
+        const API_URL = "http://localhost:8080/products";
 
+        // Собираем данные с формы
+        const productIdEl = document.getElementById("productId");
+        const name = document.getElementById("name").value;
+        const price = document.getElementById("price").value;
+        const description = document.getElementById("description").value;
+        const categoriesStr = document.getElementById("categories").value;
+        const categories = categoriesStr.split(",").map(cat => cat.trim());
+
+        // Определяем, создаём новый товар или редактируем существующий
+        const idValue = productIdEl.value.trim();
+        if (!idValue) {
+            // Создание нового товара
             const newProduct = { name, price, description, categories };
 
             try {
@@ -105,17 +146,23 @@
 
                 console.log("✅ Товар успешно добавлен:", newProduct);
                 document.getElementById("productForm").reset();
-
                 await loadProducts();
             } catch (error) {
                 console.error("Ошибка добавления товара:", error);
+                alert("Ошибка добавления товара: " + error.message);
             }
+        } else {
+            // Здесь можно реализовать PUT/PATCH для редактирования товара
+            alert("Редактирование через PUT/PATCH пока не реализовано");
         }
+    }
 
+    document.addEventListener("DOMContentLoaded", function () {
+        // Вешаем обработчик на форму
         document.getElementById("productForm").addEventListener("submit", addProduct);
+        // Первичная загрузка товаров
         loadProducts();
     });
-
 </script>
 
 </body>
